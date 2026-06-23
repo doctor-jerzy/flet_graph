@@ -1,58 +1,39 @@
 import flet as ft
-import flet_datatable2 as ftd
 import pandas as pd
 
 from ui_components import (
     create_load_screen,
-    create_data_table,
     create_main_screen
 )
 
 def main(page: ft.Page):
-    # Параметры страницы
     page.title = "Анализ рынка недвижимости №13"
-    
-    # Переменные
-    df = None
-    
-    async def on_file_picked(e):
+    page.padding = 0
+    page.theme_mode = ft.ThemeMode.LIGHT
 
-        nonlocal df
-        
-        file = await ft.FilePicker().pick_files(
-            allow_multiple=False,           # только 1 файл
-            allowed_extensions=["csv"],     # только CSV
-            dialog_title="Выберите файл с данными"
+    async def on_file_picked(e):
+        files = await ft.FilePicker().pick_files(
+            allow_multiple=False,
+            allowed_extensions=["csv"],
+            dialog_title="Выберите файл с данными",
         )
 
-        if file:
-            file_path = file[0].path 
-            
-            try:
-                df = pd.read_csv(file_path)
-                
-                load_screen.visible = False
-                main_screen = create_main_screen(df)
-                page.add(main_screen)
-                
-            except Exception as ex:
-                create_load_screen(on_click=on_file_picked, error_status=ex)
-            
+        if not files:
+            return
+
+        try:
+            dataframe = pd.read_csv(files[0].path)
+        except Exception as ex:
+            page.controls.clear()
+            page.add(create_load_screen(on_click=on_file_picked, error_status=ex))
             page.update()
-    
-    # Базовые элементы экрана (кнопки и тп)
-    load_screen = create_load_screen(on_click=on_file_picked)
-    
-    
-    # Комплексные элементы экрана (области, контейнеры)
-    # TODO:
-    # 1. Выбор CSV
-    # 2. Простейшие манипуляции (удалить столбец/строку)
-    # 3. Построить графики через matplotlib
+            return
 
-    
-    
-    # Отображение
-    page.add(load_screen)
+        page.controls.clear()
+        page.add(create_main_screen(dataframe, on_open=on_file_picked))
+        page.update()
 
+    page.add(create_load_screen(on_click=on_file_picked))
+
+# ft.run(main, host="127.0.0.1", port=8550, view=ft.AppView.FLET_APP)
 ft.run(main)
