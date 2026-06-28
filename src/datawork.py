@@ -70,5 +70,10 @@ def get_rows_from_page(df, page):
     end_index = start_index + cfg.MAX_VISIBLE_ROWS
     return df.iloc[start_index:end_index]
 
+def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
+    """Удаляет дубликаты из датафрейма и сбрасывает индексы."""
+    if df.empty:
+        return df
+    return df.drop_duplicates().reset_index(drop=True)
 
 

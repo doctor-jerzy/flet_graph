@@ -38,6 +38,27 @@ class Handler:
 
 on = Handler()
 
+def set_work_params(df, curr_page=1):
+    dtw.var.work_df = df.copy()
+    dtw.var.work_page, dtw.var.tot_pages = dtw.get_pages(df, curr_page)
+
+def set_view_params(curr_page=1):
+    if e_selected(on.show_stats):
+        # Считаем статистику заново (чтобы она была актуальной после удалений)
+        # reset_index() превращает индекс (count, mean...) в обычный столбец
+        if not dtw.var.work_df.empty:
+            view_df = dtw.var.work_df.describe().round(2).reset_index().rename(columns={'index': 'Метрика'})
+        else:
+            view_df = dtw.var.work_df
+        dtw.var.work_page = dtw.var.curr_page
+        curr_page = 1
+    else:
+        view_df = dtw.var.work_df.copy()
+        dtw.var.work_page = curr_page
+    
+    dtw.var.view_df = view_df
+    dtw.var.curr_page, dtw.var.tot_pages = dtw.get_pages(view_df, curr_page)
+
 async def choose_file(e):
     # внутртенние манипуляции: обработка файла, получение пути и датафрейма
     file = await ft.FilePicker().pick_files(
@@ -196,7 +217,7 @@ def table_info(e):
             info_content = gui.create_dataset_info_display(info_str)
         except Exception as info_error:
             # Обработка возможных ошибок при получении информации
-            info_content = ft.Text(f"Ошибка при получении информации о датасете: {info_error}", color=ft.Colors.RED)
+            info_content = ft.Text(f"Ошибка при получении информации о датасете: {info_error}", color=ft.Colors.ERROR)
 
     # Обновление слота параметров с новым содержимым
     bld.refresh_container(
@@ -219,25 +240,38 @@ def show_statistics(e):
         content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages)
     )
 
-def set_work_params(df, curr_page=1):
-    dtw.var.work_df = df.copy()
-    dtw.var.work_page, dtw.var.tot_pages = dtw.get_pages(df, curr_page)
+def remove_duplicates(e):
+    """Обработчик удаления дубликатов."""
+    if dtw.var.work_df is None or dtw.var.work_df.empty:
+        return
 
-def set_view_params(curr_page=1):
-    if e_selected(on.show_stats):
-        # Считаем статистику заново (чтобы она была актуальной после удалений)
-        # reset_index() превращает индекс (count, mean...) в обычный столбец
-        if not dtw.var.work_df.empty:
-            view_df = dtw.var.work_df.describe().round(2).reset_index().rename(columns={'index': 'Метрика'})
-        else:
-            view_df = dtw.var.work_df
-        dtw.var.work_page = dtw.var.curr_page
-        curr_page = 1
-    else:
-        view_df = dtw.var.work_df.copy()
-        dtw.var.work_page = curr_page
+    # 1. Считаем, сколько было строк до очистки
+    initial_count = len(dtw.var.work_df)
     
-    dtw.var.view_df = view_df
-    dtw.var.curr_page, dtw.var.tot_pages = dtw.get_pages(view_df, curr_page)
+    # 2. Применяем логику из datawork
+    df = dtw.drop_duplicates(dtw.var.work_df)
+    removed_count = initial_count - len(df)
+
+    # 3. Обновляем рабочие и просмотровые данные
+    set_work_params(df, dtw.var.work_page)
+    set_view_params(dtw.var.work_page)
+
+    # 4. Обновляем таблицу и информацию о страницах
+    bld.refresh_container(
+        bld.app.table,
+        content=gui.create_table(dtw.var.view_df, dtw.var.curr_page)
+    )
+    bld.refresh_container(
+        bld.app.page_info,
+        content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages)
+    )
+
+    # 5. Пишем результат в слот вывода
+    bld.refresh_container(
+        bld.app.output_slot,
+        content=ft.Text(f"Удалено дубликатов: {removed_count}", color=ft.Colors.GREEN)
+    )
+
+
 
 

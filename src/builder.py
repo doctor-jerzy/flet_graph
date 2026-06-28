@@ -30,6 +30,7 @@ class Button:
     del_col_icon = gui.create_del_col_icon()
     info_icon = gui.create_info_button()
     stats_icon = gui.create_stats_icon()
+    del_dup_icon = gui.create_del_dup_icon()
     # кнопки переключения страниц
     to_begin = gui.create_to_begin_button()
     backward = gui.create_backward_button()
@@ -77,7 +78,8 @@ def main_screen(df, curr_page, tot_pages):
             btn.revert_icon,
             btn.del_col_icon,
             btn.info_icon,
-            btn.stats_icon
+            btn.stats_icon,
+            btn.del_dup_icon
         ),
         padding=ft.Padding(0, 10, 0, 10),
     )
@@ -135,7 +137,11 @@ def main_screen(df, curr_page, tot_pages):
     app.workspace = ft.Container(
         content=gui.create_workspace(
             app.table_slot,
-            ft.Row([app.parameters_slot, app.output_slot], expand=True)
+            ft.Row(
+                [app.parameters_slot, app.output_slot],
+                expand=True,
+                scroll=ft.ScrollMode.AUTO
+            )
         ),
         expand=True
     )

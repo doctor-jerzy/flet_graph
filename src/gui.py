@@ -20,7 +20,7 @@ def create_load_description(error: Exception | str | None):
     # Если поступила, то надпись другая и красная
     else:
         desc = ft.Text(f"Ошибка чтения CSV: {error}")
-        desc.color = ft.Colors.RED
+        desc.color = ft.Colors.ERROR
     return desc
 
 
@@ -230,4 +230,11 @@ def _create_toggle_icon(icon, tooltip):
                 ft.ControlState.DEFAULT: ft.Colors.SURFACE, # Цвет по умолчанию
             }
         )
+    )
+
+def create_del_dup_icon():
+    """Создание иконки для удаления дубликатов."""
+    return ft.OutlinedIconButton(
+        icon=ft.Icons.DELETE_SWEEP, # Иконка "метлы" / очистки
+        tooltip="Удалить дубликаты"
     )

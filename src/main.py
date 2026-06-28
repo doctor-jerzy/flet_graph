@@ -21,6 +21,7 @@ def start(page: ft.Page):
     bld.btn.del_col_icon.on_click = do.open_del_col_params
     bld.btn.info_icon.on_click = do.table_info
     bld.btn.stats_icon.on_click = do.show_statistics
+    bld.btn.del_dup_icon.on_click = do.remove_duplicates
 
     bld.btn.to_begin.on_click = do.slide_table_begin
     bld.btn.backward.on_click = do.slide_table_back
