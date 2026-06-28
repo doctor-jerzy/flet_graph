@@ -1,0 +1,37 @@
+---
+description: Конвенции Flet UI для проекта flet_graph (Python, src/)
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Flet — проект flet_graph
+
+## Версия и API
+
+- `flet==0.85.3`, `flet-datatable2==0.85.3`
+- Использовать `ft.Button`, `ft.FilledButton`, `ft.OutlinedButton`, `ft.Icons`, `ft.Colors`, `ft.Alignment`
+- Не предлагать устаревший API (`ElevatedButton`, `icons.`, `colors.`)
+
+## Стиль кода
+
+- Следовать паттернам [src/main.py](src/main.py) и [src/ui_components.py](src/ui_components.py)
+- UI-тексты на русском
+- `page.theme_mode = ft.ThemeMode.LIGHT`
+- Фабрики экранов: `create_load_screen`, `create_main_screen`, `create_data_table`
+
+## Навигация и состояние
+
+- Смена экрана: `page.controls.clear()` → `page.add(...)` → `page.update()`
+- Локальные изменения: `control.update()` на затронутых контролах
+- FilePicker: `async def` + `await ft.FilePicker().pick_files(...)`
+
+## Таблицы
+
+- Базовый случай: `ft.DataTable` в `ft.Row(scroll=ft.ScrollMode.AUTO)`
+- Расширения (липкие заголовки и т.д.): `flet_datatable2`
+
+## Документация
+
+- Краткая шпаргалка: `.cursor/skills/flet/SKILL.md`
+- По теме: `docs/flet/<topic>.md` (не PDF)
+- При задачах указывать `@docs/flet/...` и `@src/...`
