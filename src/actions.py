@@ -50,7 +50,6 @@ def set_view_params(curr_page=1):
             view_df = dtw.var.work_df.describe().round(2).reset_index().rename(columns={'index': 'Метрика'})
         else:
             view_df = dtw.var.work_df
-        dtw.var.work_page = dtw.var.curr_page
         curr_page = 1
     else:
         view_df = dtw.var.work_df.copy()
@@ -84,7 +83,7 @@ async def choose_file(e):
     # ...и скрина
     screen = bld.main_screen(df, dtw.var.curr_page, dtw.var.tot_pages)
     bld.show_screen(screen)
-
+    bld.append_to_log(f"Файл загружен: {path}\nСтрок: {len(df)}, Столбцов: {len(df.columns)}")
 
 def open_del_col_params(e):
     bld.app.column_dropdown = gui.create_column_dropdown(dtw.var.work_df)
@@ -97,13 +96,13 @@ def open_del_col_params(e):
         content=ft.Row([bld.app.column_dropdown, bld.btn.del_col])
     )
 
-
 def delete_column(e):
     if bld.app.column_dropdown.value is None:
         return
     # обновление dtw
     # рабочий датафрейм
-    df = dtw.var.work_df.drop(columns=[bld.app.column_dropdown.value])
+    col_name = bld.app.column_dropdown.value
+    df = dtw.var.work_df.drop(columns=[col_name])
     set_work_params(df, dtw.var.work_page)
     set_view_params(dtw.var.work_page)
     
@@ -122,6 +121,7 @@ def delete_column(e):
         bld.app.page_info,
         content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages)
     )
+    bld.append_to_log(f"Удалён столбец: '{col_name}'")
 
 def revert(e):
     # возврат к оригинальным данным dtw
@@ -142,12 +142,9 @@ def revert(e):
     # здесь я просто заглушку текста сделал, НАДО БУДЕТ ЧЕРЕЗ КОНФИГИ ЭТО НАСТРОИТЬ
     bld.refresh_container(
         bld.app.parameters_slot,
-        content=ft.Text("Откатилось")
+        content=gui.create_parameters()
     )
-    bld.refresh_container(
-        bld.app.output_slot,
-        content=ft.Text("Откатилось")
-    )
+    bld.append_to_log("Изменения откатаны до исходного состояния")
 
 def slide_table_begin(e):
     set_view_params(1)
@@ -201,7 +198,7 @@ def table_info(e):
     """Обработчик нажатия на кнопку информации о датасете."""
     if dtw.var.work_df is None or dtw.var.work_df.empty:
         # Если датафрейм пуст или не загружен, сообщение
-        info_content = ft.Text("Датасет не загружен или пуст.", color=ft.Colors.RED)
+        bld.append_to_log("Датасет не загружен или пуст.", type='error')
     else:
         try:
             # Перехват вывода info() в строку
@@ -214,16 +211,10 @@ def table_info(e):
             info_str = buffer.getvalue()
 
             # создание текстового контейнера
-            info_content = gui.create_dataset_info_display(info_str)
+            bld.append_to_log(info_str)
         except Exception as info_error:
             # Обработка возможных ошибок при получении информации
-            info_content = ft.Text(f"Ошибка при получении информации о датасете: {info_error}", color=ft.Colors.ERROR)
-
-    # Обновление слота параметров с новым содержимым
-    bld.refresh_container(
-        bld.app.parameters_slot,
-        content=info_content
-    )
+            bld.append_to_log(f"Ошибка при получении информации о датасете: {info_error}", type='error')
 
 def show_statistics(e):
     on.show_stats = toggle_button(e)
@@ -267,11 +258,73 @@ def remove_duplicates(e):
     )
 
     # 5. Пишем результат в слот вывода
+    bld.append_to_log(f"Удалено строк: {removed_count} из {initial_count}, стало {len(df)}")
+
+def open_add_col_params(e):
+    """Открывает панель параметров для добавления колонки."""
+    # Инициализируем элементы и сохраняем их в слоты builder
+    bld.app.col_name_input = gui.create_col_name_input()
+    bld.app.col_type_dropdown = gui.create_col_type_dropdown()
+    bld.app.col_value_input = gui.create_col_value_input()
+    bld.app.col_submit_btn = gui.create_add_col_submit_btn()
+    
+    # Привязываем обработчик к кнопке "Добавить"
+    bld.app.col_submit_btn.on_click = submit_add_col
+
+    # Собираем UI в слоте параметров
     bld.refresh_container(
-        bld.app.output_slot,
-        content=ft.Text(f"Удалено дубликатов: {removed_count}", color=ft.Colors.GREEN)
+        bld.app.parameters_slot,
+        content=ft.Column(
+            controls=[
+                bld.app.col_name_input,
+                bld.app.col_type_dropdown,
+                bld.app.col_value_input,
+                bld.app.col_submit_btn
+            ],
+            spacing=15,
+            expand=True
+        )
     )
 
+def submit_add_col(e):
+    """Обработчик нажатия кнопки 'Добавить' в панели параметров."""
+    col_name = bld.app.col_name_input.value
+    col_type = bld.app.col_type_dropdown.value
+    expr = bld.app.col_value_input.value
 
+    # Валидация ввода
+    if not col_name or not col_name.strip():
+        bld.append_to_log("Ошибка: Введите имя колонки.", type='error')
+        return
+    if not expr or not expr.strip():
+        bld.append_to_log("Ошибка: Введите значение или выражение.", type='error')
+        return
+
+    col_name = col_name.strip()
+    
+    # Вызываем функцию из datawork
+    new_df, success, msg = dtw.add_column_with_expr(
+        dtw.var.work_df, col_name, col_type, expr
+    )
+
+    if success:
+        # Если всё прошло успешно, обновляем данные и интерфейс
+        dtw.var.work_df = new_df
+        set_work_params(new_df, dtw.var.work_page)
+        set_view_params(dtw.var.work_page)
+        
+        bld.refresh_container(bld.app.table, content=gui.create_table(dtw.var.view_df, dtw.var.curr_page))
+        bld.refresh_container(bld.app.page_info, content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages))
+        
+        bld.append_to_log(msg)
+        
+        # Очищаем поля ввода для удобства
+        bld.app.col_name_input.value = ""
+        bld.app.col_value_input.value = ""
+        bld.app.col_name_input.update()
+        bld.app.col_value_input.update()
+    else:
+        # Если произошла ошибка (неверный тип, синтаксис и т.д.) - пишем в лог
+        bld.append_to_log(msg, type='error')
 
 

@@ -12,12 +12,13 @@ def start(page: ft.Page):
     bld.app.page = page
     bld.app.page.title = cfg.APP_TITLE
     bld.app.page.padding = cfg.PAGE_PADDING
-    bld.app.page.theme_mode = ft.ThemeMode.LIGHT
+    bld.app.page.theme_mode = cfg.THEME_MODE
     
     # инициализация элементов интерфейса
     bld.btn.load_butt.on_click = do.choose_file
     bld.btn.load_icon.on_click = do.choose_file
     bld.btn.revert_icon.on_click = do.revert
+    bld.btn.add_col_icon.on_click = do.open_add_col_params
     bld.btn.del_col_icon.on_click = do.open_del_col_params
     bld.btn.info_icon.on_click = do.table_info
     bld.btn.stats_icon.on_click = do.show_statistics

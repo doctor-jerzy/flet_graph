@@ -1,6 +1,8 @@
 # data.py
 import pandas as pd
 from dataclasses import dataclass
+import numpy as np
+import ast
 
 import config as cfg
 
@@ -76,4 +78,48 @@ def drop_duplicates(df: pd.DataFrame) -> pd.DataFrame:
         return df
     return df.drop_duplicates().reset_index(drop=True)
 
+def add_column_with_expr(df, col_name, target_dtype, expression):
+    """
+    Вычисляет выражение, создает колонку и приводит её к типу.
+    Возвращает: (новый_df, успех: bool, сообщение: str)
+    """
+    try:
+        # 1. Безопасное окружение для eval. 
+        # Разрешаем только df, numpy и pandas. Блокируем __builtins__.
+        safe_env = {"df": df, "np": np, "pd": pd, "__builtins__": {}}
+        
+        # Пытаемся вычислить как выражение (например, df['a'] + df['b'])
+        try:
+            new_data = eval(expression, safe_env)
+        except SyntaxError:
+            # Если синтаксическая ошибка, возможно, пользователь ввел просто текст без кавычек (Петя)
+            # или число. Пробуем распарсить как литерал Python.
+            try:
+                new_data = ast.literal_eval(expression)
+            except (ValueError, SyntaxError):
+                # Если и это не вышло, считаем это просто строкой
+                new_data = expression
 
+        # 2. Создаем копию df и добавляем колонку
+        df = df.copy()
+        df[col_name] = new_data
+
+        # 3. Приводим к нужному типу с обработкой ошибок
+        if target_dtype == "string":
+            df[col_name] = df[col_name].astype('string')
+        elif target_dtype == "category":
+            df[col_name] = df[col_name].astype("category")
+        elif target_dtype == "bool":
+            # Pandas плохо понимает строки в bool, но 0/1 поймет
+            df[col_name] = df[col_name].astype(bool)
+        elif target_dtype == "float64": # int64, float64
+            # errors='raise' вызовет ValueError, если там есть нечисловые символы (например, 'Петя')
+            df[col_name] = df[col_name].astype("float64", errors='raise') 
+        elif target_dtype == "int64":
+            df[col_name] = df[col_name].astype("int64", errors='raise')
+
+        return df, True, f"Колонка '{col_name}' успешно добавлена."
+
+    except Exception as e:
+        # Ловим любые ошибки (ошибки вычислений, ошибки приведения типов)
+        return df, False, f"Ошибка: {str(e)}"

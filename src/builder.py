@@ -3,8 +3,10 @@
 # Задача: Собирать экраны из кирпичиков ui.py. Хранить ссылки на элементы, которые нужно будет обновлять (слоты). Принимать "коллбэки" (функции-обработчики кликов) извне.
 import flet as ft
 from dataclasses import dataclass
+import datetime
 
 import gui
+import config as cfg
 
 # сюда надо подавать элементы интерфейса, которые будут изменяться в процессе программы
 @dataclass
@@ -18,6 +20,11 @@ class AppState:
     output_slot = None
     workspace=None
     column_dropdown = None
+    
+    col_name_input = None
+    col_type_dropdown = None
+    col_value_input = None
+    col_submit_btn = None
 
 # сюда надо подать элементы интерфейса, которые должны быть привязаны к конкретным действиям изначально
 @dataclass
@@ -27,10 +34,12 @@ class Button:
     # кнопки тулбара
     load_icon = gui.create_load_icon()
     revert_icon = gui.create_revert_icon()
+    add_col_icon = gui.create_add_col_icon()
     del_col_icon = gui.create_del_col_icon()
     info_icon = gui.create_info_button()
     stats_icon = gui.create_stats_icon()
     del_dup_icon = gui.create_del_dup_icon()
+    
     # кнопки переключения страниц
     to_begin = gui.create_to_begin_button()
     backward = gui.create_backward_button()
@@ -66,7 +75,7 @@ def load_screen(error=None):
         content=load_column,
         align=ft.Alignment.CENTER,
         expand=True,
-        padding=30,
+        padding=cfg.LOAD_SCREEN_PADDING,
     )
 
 def main_screen(df, curr_page, tot_pages):
@@ -76,19 +85,23 @@ def main_screen(df, curr_page, tot_pages):
         content=gui.create_toolbar(
             btn.load_icon,
             btn.revert_icon,
+            btn.add_col_icon,
             btn.del_col_icon,
             btn.info_icon,
             btn.stats_icon,
             btn.del_dup_icon
         ),
-        padding=ft.Padding(0, 10, 0, 10),
+        padding=cfg.TOOLBAR_PADDING,
+        bgcolor=cfg.TOOLBAR_BGCOLOR
     )
 
     
     # Таблица
     app.table = ft.Container(
         content=gui.create_table(df, curr_page),
-        border=ft.Border.all(0.5, ft.Colors.ON_SURFACE_VARIANT),
+        border=ft.Border.only(
+            bottom=ft.BorderSide(cfg.TABLE_OUTER_BORDERS_WIDTH, cfg.TABLE_BORDER_COLOR)
+        ),
         clip_behavior=ft.ClipBehavior.HARD_EDGE
     )
   
@@ -104,32 +117,35 @@ def main_screen(df, curr_page, tot_pages):
             app.page_info,
             btn.forward,
             btn.to_end
-        )
+        ),
+        padding=cfg.SLIDER_PADDING
     )
     
     # слот таблицы со слайдером
     app.table_slot = ft.Container(
         ft.Column(
-            controls=[app.table, app.slider]
-        )
+            controls=[app.table, app.slider],
+            spacing=0
+        ),
+        border=ft.Border.all(cfg.SLOT_BORDER_WIDTH, color=cfg.SLOT_BORDER_COLOR)
     )
 
     # Слоты параметров и вывода
     app.parameters_slot = ft.Container(
         content=gui.create_parameters(),
-        height=360,
-        width=450,
-        border=ft.Border.all(width=1, color='outline'),
-        padding=10,
+        height=cfg.PARAMETERS_SLOT_HEIGHT,
+        width=cfg.PARAMETERS_SLOT_WIDTH,
+        border=ft.Border.all(width=cfg.SLOT_BORDER_WIDTH, color=cfg.SLOT_BORDER_COLOR),
+        padding=cfg.SLOT_PADDING,
         alignment=ft.Alignment.TOP_LEFT
     )
     
     app.output_slot = ft.Container(
         content=gui.create_output(),
-        height=360,
-        width=640,
-        border=ft.Border.all(width=1, color='outline'),
-        padding=10,
+        height=cfg.OUTPUT_SLOT_HEIGHT,
+        width=cfg.OUTPUT_SLOT_WIDTH,
+        border=ft.Border.all(width=cfg.SLOT_BORDER_WIDTH, color=cfg.SLOT_BORDER_COLOR),
+        padding=cfg.SLOT_PADDING,
         alignment=ft.Alignment.TOP_LEFT
     )
     
@@ -143,23 +159,28 @@ def main_screen(df, curr_page, tot_pages):
                 scroll=ft.ScrollMode.AUTO
             )
         ),
-        expand=True
+        expand=True,
+        padding=cfg.WORKSPACE_PADDING
     )
     
     return ft.Container(
-        content=ft.Column([toolbar, app.workspace]),
+        content=ft.Column([toolbar, app.workspace], spacing=0),
         expand=True,
-        padding=10,
+        padding=cfg.MAIN_SCREEN_PADDING,
     )
 
 def refresh_container(container, content=None):
     container.content = content
     container.update()
 
-import datawork as dtw
-
-def refresh_table():
-    refresh_container(
-        app.table,
-        content=gui.create_table(dtw.var.view_df, dtw.var.curr_page)
-    )
+def append_to_log(message: str, type=None):
+    """Добавляет новую запись в output_slot, не удаляя предыдущие."""
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    # Если content ещё не инициализирован (маловероятно, но на всякий случай)
+    if app.output_slot.content is None:
+        app.output_slot.content = gui.create_output()
+    entry = gui.create_log_entry(message, timestamp)
+    if type == 'error':
+        entry.color = cfg.COLOR_ERROR
+    app.output_slot.content.controls.controls.append(entry)
+    app.output_slot.update()
