@@ -1,5 +1,6 @@
 # actions.py
 import flet as ft
+import flet_charts as fch
 from dataclasses import dataclass
 import io
 import sys
@@ -70,7 +71,7 @@ async def choose_file(e):
     path = file[0].path
     try:
         # если какая-то ошибка при загрузке датафрейма, это всплывёт
-        df = dtw.load_csv(path)
+        df = dtw.load_csv_with_dtypes(path)
     except Exception as ex:
         # если ошибка, dtw не обновляется, сразу загрузочный экран с ошибкой
         screen = bld.load_screen(error=ex)
@@ -84,6 +85,30 @@ async def choose_file(e):
     screen = bld.main_screen(df, dtw.var.curr_page, dtw.var.tot_pages)
     bld.show_screen(screen)
     bld.append_to_log(f"Файл загружен: {path}\nСтрок: {len(df)}, Столбцов: {len(df.columns)}")
+
+async def save_file(e):
+    """Обработчик сохранения датасета и его типов."""
+    if dtw.var.work_df is None or dtw.var.work_df.empty:
+        bld.append_to_log("Нечего сохранять: датасет пуст или не загружен.", type='error')
+        return
+
+    # Открываем диалог сохранения
+    file = await ft.FilePicker().save_file(
+        file_name="saved_data.csv",
+        allowed_extensions=cfg.CSV_EXTENSIONS,
+        dialog_title="Сохранить датасет и типы столбцов",
+    )
+    
+    if not file:
+        return # Пользователь отменил
+
+    path = file
+    try:
+        # Вызываем функцию из datawork
+        dtw.save_df_with_dtypes(dtw.var.work_df, path)
+        bld.append_to_log(f"Успешно сохранено: {path}\n(и файл типов .dtypes.json)")
+    except Exception as ex:
+        bld.append_to_log(f"Ошибка при сохранении: {ex}", type='error')
 
 def open_del_col_params(e):
     bld.app.column_dropdown = gui.create_column_dropdown(dtw.var.work_df)
@@ -328,3 +353,187 @@ def submit_add_col(e):
         bld.append_to_log(msg, type='error')
 
 
+
+# =================== ГРАФИКИ ===================
+
+def open_chart_params(e):
+    """Открывает меню выбора типа графика в parameters_slot."""
+    if dtw.var.work_df is None or dtw.var.work_df.empty:
+        bld.append_to_log("Сначала загрузите датасет.", type='error')
+        return
+
+    bld.app.current_chart_type = None
+    bld.app.chart_type_dropdown = gui.create_chart_type_dropdown()
+    bld.app.chart_type_dropdown.on_select = on_chart_type_select
+
+    # Контейнер для динамического содержимого (выбор столбцов)
+    bld.app.chart_columns_container = ft.Container()
+    bld.app.chart_category_dropdown = None
+    bld.app.chart_build_btn = None
+
+    bld.refresh_container(
+        bld.app.parameters_slot,
+        content=ft.Column(
+            controls=[
+                ft.Text("Построение графика", weight=ft.FontWeight.BOLD),
+                bld.app.chart_type_dropdown,
+                bld.app.chart_columns_container,
+            ],
+            spacing=15,
+            scroll=ft.ScrollMode.AUTO,
+            expand=True
+        )
+    )
+
+def on_chart_type_select(e):
+    """Реагирует на смену типа графика — перестраивает UI выбора столбцов."""
+    chart_type = e.control.value
+    bld.app.current_chart_type = chart_type
+    bld.app.chart_category_dropdown = None
+    bld.app.chart_stacked_checkbox = None
+    bld.app.chart_stacked_container = None
+
+    df = dtw.var.work_df
+    controls = []
+
+    if chart_type == "hist":
+        if not dtw.get_numeric_columns(df):
+            controls.append(ft.Text(cfg.TXT_NO_NUMERIC_COLS, color=cfg.COLOR_ERROR))
+        else:
+            bld.app.chart_col_dd = gui.create_numeric_column_dropdown(df)
+            controls.append(bld.app.chart_col_dd)
+            # Доп. опция — категориальный столбец для группировки
+            bld.app.chart_category_dropdown = gui.create_category_dropdown(df)
+            bld.app.chart_category_dropdown.on_select = on_hist_category_select
+            controls.append(bld.app.chart_category_dropdown)
+            # Пустой контейнер, куда позже положим чекбокс
+            bld.app.chart_stacked_container = ft.Container()
+            controls.append(bld.app.chart_stacked_container)
+
+    elif chart_type == "box":
+        if not dtw.get_numeric_columns(df):
+            controls.append(ft.Text(cfg.TXT_NO_NUMERIC_COLS, color=cfg.COLOR_ERROR))
+        else:
+            controls.append(ft.Text(cfg.LBL_SELECT_COLUMNS))
+            bld.app.chart_checkboxes = gui.create_numeric_columns_checkboxes(df)
+            controls.append(bld.app.chart_checkboxes)
+
+    elif chart_type == "bar":
+        if not dtw.get_categorical_columns(df):
+            controls.append(ft.Text(cfg.TXT_NO_CATEGORICAL_COLS, color=cfg.COLOR_ERROR))
+        else:
+            controls.append(ft.Text(cfg.LBL_SELECT_COLUMNS))
+            bld.app.chart_checkboxes = gui.create_categorical_columns_checkboxes(df)
+            controls.append(bld.app.chart_checkboxes)
+
+    elif chart_type == "scatter":
+        if len(dtw.get_numeric_columns(df)) < 2:
+            controls.append(ft.Text("Нужно минимум 2 числовых столбца", color=cfg.COLOR_ERROR))
+        else:
+            scatter_row = gui.create_scatter_column_row(df)
+            bld.app.chart_dd_x = scatter_row.controls[0]
+            bld.app.chart_dd_y = scatter_row.controls[1]
+            controls.append(scatter_row)
+            # Доп. опция — категориальный столбец для раскраски
+            bld.app.chart_category_dropdown = gui.create_category_dropdown(df)
+            controls.append(bld.app.chart_category_dropdown)
+
+    # Кнопка "Построить"
+    bld.app.chart_build_btn = gui.create_build_chart_button()
+    bld.app.chart_build_btn.on_click = build_chart
+    controls.append(bld.app.chart_build_btn)
+
+    bld.refresh_container(
+        bld.app.chart_columns_container,
+        content=ft.Column(controls=controls, spacing=10)
+    )
+
+def on_hist_category_select(e):
+    """Реагирует на выбор категориального столбца для гистограммы."""
+    # Если выбрана конкретная категория (не "none") — показываем чекбокс
+    if e.control.value and e.control.value != "none":
+        bld.app.chart_stacked_checkbox = gui.create_stacked_checkbox()
+        bld.refresh_container(
+            bld.app.chart_stacked_container,
+            content=bld.app.chart_stacked_checkbox
+        )
+    else:
+        # Если выбрано "Не выбрано" — убираем чекбокс
+        bld.refresh_container(
+            bld.app.chart_stacked_container,
+            content=None
+        )
+        bld.app.chart_stacked_checkbox = None
+
+def build_chart(e):
+    """Считывает выбор пользователя и строит график."""
+    chart_type = bld.app.current_chart_type
+    df = dtw.var.work_df
+
+    fig = None
+    msg = ""
+
+    try:
+        if chart_type == "hist":
+            col = bld.app.chart_col_dd.value
+            if not col:
+                bld.append_to_log(cfg.TXT_SELECT_AT_LEAST_ONE, type='error')
+                return
+            # Обработка "Не выбрано"
+            hue_col = bld.app.chart_category_dropdown.value
+            if hue_col == "none" or not hue_col:
+                hue_col = None
+            
+            # Проверяем состояние чекбокса (если он существует)
+            is_stacked = False
+            if hasattr(bld.app, 'chart_stacked_checkbox') and bld.app.chart_stacked_checkbox is not None:
+                is_stacked = bld.app.chart_stacked_checkbox.value
+
+            fig = dtw.build_hist_figure(df, col, hue_col, stacked=is_stacked)
+            # Формируем сообщение для лога
+            msg = f"Построена гистограмма: {col}"
+            if hue_col:
+                msg += f" (группировка: {hue_col})"
+                if is_stacked:
+                    msg += " [с накоплением]"
+
+        elif chart_type == "box":
+            selected = [cb.label for cb in bld.app.chart_checkboxes.controls if cb.value]
+            if not selected:
+                bld.append_to_log(cfg.TXT_SELECT_AT_LEAST_ONE, type='error')
+                return
+            fig = dtw.build_box_figure(df, selected)
+            msg = f"Построен box plot: {', '.join(selected)}"
+
+        elif chart_type == "bar":
+            selected = [cb.label for cb in bld.app.chart_checkboxes.controls if cb.value]
+            if not selected:
+                bld.append_to_log(cfg.TXT_SELECT_AT_LEAST_ONE, type='error')
+                return
+            fig = dtw.build_bar_figure(df, selected)
+            msg = f"Построен bar plot: {', '.join(selected)}"
+
+        elif chart_type == "scatter":
+            col_x = bld.app.chart_dd_x.value
+            col_y = bld.app.chart_dd_y.value
+            if not col_x or not col_y:
+                bld.append_to_log(cfg.TXT_SELECT_TWO_COLS, type='error')
+                return
+            if col_x == col_y:
+                bld.append_to_log("Оси X и Y должны различаться", type='error')
+                return
+            hue_col = bld.app.chart_category_dropdown.value
+            if hue_col == "none" or not hue_col:
+                hue_col = None
+            fig = dtw.build_scatter_figure(df, col_x, col_y, hue_col)
+            msg = f"Построен scatter: {col_x} vs {col_y}" + (f" (hue: {hue_col})" if hue_col else "")
+
+        # Выводим график в chart_slot
+        bld.refresh_container(
+            bld.app.chart_slot,
+            content=fch.MatplotlibChart(figure=fig, expand=True)
+        )
+        bld.append_to_log(msg)
+
+    except Exception as ex:
+        bld.append_to_log(f"Ошибка построения графика: {ex}", type='error')

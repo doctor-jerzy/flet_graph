@@ -80,6 +80,7 @@ TXT_LOAD_BUTTON = "Выбрать файл"
 
 # --- Тулбар (Тултипы) ---
 TIP_OPEN_CSV = "Открыть CSV"
+TIP_SAVE_CSV_WITH_TYPES = "Сохранить датасет и типы"
 TIP_REVERT = "Сбросить изменения"
 TIP_ADD_COL = "Добавить/изменить поле"
 TIP_DEL_COL = "Удалить столбец"
@@ -116,3 +117,36 @@ COLUMN_TYPES = {
     "category": "category",
     "bool": "boolean"
 }
+
+# --- Графики ---
+TIP_CHARTS = "Построить график"
+LBL_CHART_TYPE = "Тип графика"
+CHART_TYPES = {
+    "hist": "Гистограмма",
+    "box": "Ящик с усами",
+    "bar": "Столбчатая",
+    "scatter": "Точечная"
+}
+LBL_STACKED_HIST = "C накоплением"
+LBL_SELECT_COLUMN = "Столбец"
+LBL_SELECT_COLUMNS = "Выберите столбцы"
+LBL_SCATTER_X = "Ось X"
+LBL_SCATTER_Y = "Ось Y"
+LBL_CATEGORY_VAR = "Группировка по категории (необязательно)"
+TXT_BUILD_CHART = "Построить"
+TXT_NO_NUMERIC_COLS = "В датасете нет числовых столбцов"
+TXT_NO_CATEGORICAL_COLS = "В датасете нет категориальных столбцов"
+TXT_SELECT_AT_LEAST_ONE = "Выберите хотя бы один столбец"
+TXT_SELECT_TWO_COLS = "Выберите ровно два столбца"
+
+BINS = 20
+
+# Размеры слота графиков
+CHART_SLOT_HEIGHT = 720
+CHART_SLOT_WIDTH = 1280
+CHART_SLOT_BORDER_WIDTH = SLOT_BORDER_WIDTH
+CHART_SLOT_BORDER_COLOR = SLOT_BORDER_COLOR
+CHART_SLOT_PADDING = 0
+
+HIST_BINS_EDGECOLOR = 'white'
+HIST_BINS_COLOR = 'steelblue'

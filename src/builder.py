@@ -18,6 +18,7 @@ class AppState:
     table_slot = None
     parameters_slot = None
     output_slot = None
+    chart_slot = None
     workspace=None
     column_dropdown = None
     
@@ -26,6 +27,14 @@ class AppState:
     col_value_input = None
     col_submit_btn = None
 
+    # --- Графики ---
+    current_chart_type = None      # текущий выбранный тип графика
+    chart_type_dropdown = None
+    chart_columns_container = None # контейнер для выбора столбцов (обновляется)
+    chart_build_btn = None
+    chart_category_dropdown = None # для гистограммы и scatter
+    chart_col_dd = None
+
 # сюда надо подать элементы интерфейса, которые должны быть привязаны к конкретным действиям изначально
 @dataclass
 class Button:
@@ -33,12 +42,14 @@ class Button:
     load_butt = gui.create_load_button()
     # кнопки тулбара
     load_icon = gui.create_load_icon()
+    save_icon = gui.create_save_icon()
     revert_icon = gui.create_revert_icon()
     add_col_icon = gui.create_add_col_icon()
     del_col_icon = gui.create_del_col_icon()
     info_icon = gui.create_info_button()
     stats_icon = gui.create_stats_icon()
     del_dup_icon = gui.create_del_dup_icon()
+    charts_icon = gui.create_charts_icon() 
     
     # кнопки переключения страниц
     to_begin = gui.create_to_begin_button()
@@ -84,12 +95,14 @@ def main_screen(df, curr_page, tot_pages):
     toolbar = ft.Container(
         content=gui.create_toolbar(
             btn.load_icon,
+            btn.save_icon,
             btn.revert_icon,
             btn.add_col_icon,
             btn.del_col_icon,
             btn.info_icon,
             btn.stats_icon,
-            btn.del_dup_icon
+            btn.del_dup_icon,
+            btn.charts_icon
         ),
         padding=cfg.TOOLBAR_PADDING,
         bgcolor=cfg.TOOLBAR_BGCOLOR
@@ -148,6 +161,16 @@ def main_screen(df, curr_page, tot_pages):
         padding=cfg.SLOT_PADDING,
         alignment=ft.Alignment.TOP_LEFT
     )
+
+    # Слот для графиков (изначально пустой, без высоты)
+    app.chart_slot = ft.Container(
+        height=cfg.CHART_SLOT_HEIGHT,
+        width=cfg.CHART_SLOT_WIDTH,
+        border=ft.Border.all(cfg.CHART_SLOT_BORDER_WIDTH, color=cfg.CHART_SLOT_BORDER_COLOR),
+        padding=cfg.CHART_SLOT_PADDING,
+        alignment=ft.Alignment.TOP_LEFT,
+    )
+
     
     # Рабочая зона
     app.workspace = ft.Container(
@@ -157,7 +180,8 @@ def main_screen(df, curr_page, tot_pages):
                 [app.parameters_slot, app.output_slot],
                 expand=True,
                 scroll=ft.ScrollMode.AUTO
-            )
+            ),
+            app.chart_slot
         ),
         expand=True,
         padding=cfg.WORKSPACE_PADDING

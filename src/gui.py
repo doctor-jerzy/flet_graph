@@ -157,7 +157,7 @@ def create_output():
         ft.Column(
             scroll=ft.ScrollMode.AUTO,
             auto_scroll=True,   # автоматически прокручивает вниз при новых записях
-            expand=True,
+            expand=True
         ),
         scroll=ft.ScrollMode.AUTO,
         expand=True
@@ -301,4 +301,94 @@ def create_add_col_submit_btn():
     return ft.FilledButton(
         content=cfg.TXT_SUBMIT_ADD_COL,
         icon=ft.Icons.CHECK
+    )
+
+def create_charts_icon():
+    """Иконка в тулбар для открытия меню графиков."""
+    return ft.OutlinedIconButton(
+        icon=ft.Icons.SHOW_CHART,
+        tooltip=cfg.TIP_CHARTS
+    )
+
+def create_chart_type_dropdown():
+    """Дропдаун выбора типа графика."""
+    options = [ft.dropdown.Option(key=k, text=v) for k, v in cfg.CHART_TYPES.items()]
+    return ft.Dropdown(
+        label=cfg.LBL_CHART_TYPE,
+        options=options,
+        expand=True,
+        dense=True
+    )
+
+def create_numeric_column_dropdown(df):
+    """Один числовой столбец (для гистограммы)."""
+    cols = dtw.get_numeric_columns(df)
+    options = [ft.dropdown.Option(c) for c in cols]
+    return ft.Dropdown(
+        label=cfg.LBL_SELECT_COLUMN,
+        options=options,
+        expand=True,
+        dense=True
+    )
+
+def create_numeric_columns_checkboxes(df):
+    """Чекбоксы для выбора нескольких числовых столбцов (для box)."""
+    cols = dtw.get_numeric_columns(df)
+    return ft.Column(
+        controls=[ft.Checkbox(label=c) for c in cols],
+        scroll=ft.ScrollMode.AUTO,
+        expand=False,
+        height=150,
+        spacing=0
+    )
+
+def create_categorical_columns_checkboxes(df):
+    """Чекбоксы для выбора нескольких категориальных столбцов (для bar)."""
+    cols = dtw.get_categorical_columns(df)
+    return ft.Column(
+        controls=[ft.Checkbox(label=c) for c in cols],
+        scroll=ft.ScrollMode.AUTO,
+        expand=False,
+        height=150,
+        spacing=0
+    )
+
+def create_scatter_column_row(df):
+    """Два дропдауна для выбора X и Y в scatter."""
+    cols = dtw.get_numeric_columns(df)
+    options = [ft.dropdown.Option(c) for c in cols]
+    dd_x = ft.Dropdown(label=cfg.LBL_SCATTER_X, options=list(options), expand=True, dense=True)
+    dd_y = ft.Dropdown(label=cfg.LBL_SCATTER_Y, options=list(options), expand=True, dense=True)
+    return ft.Row([dd_x, dd_y], spacing=10)
+
+def create_category_dropdown(df):
+    """Дропдаун для выбора категориальной переменной (группировка)."""
+    cols = dtw.get_categorical_columns(df)
+    options = [ft.dropdown.Option(key="none", text="Не выбрано")] + [ft.dropdown.Option(c) for c in cols]
+    return ft.Dropdown(
+        label=cfg.LBL_CATEGORY_VAR,
+        options=options,
+        value="none",  # Изначально выбрано "Не выбрано"
+        expand=True,
+        dense=True
+    )
+
+def create_stacked_checkbox():
+    """Чекбокс для переключения между графиками в ряд и с накоплением."""
+    return ft.Checkbox(
+        label=cfg.LBL_STACKED_HIST,
+        value=False
+    )
+
+def create_build_chart_button():
+    """Кнопка 'Построить'."""
+    return ft.FilledButton(
+        content=cfg.TXT_BUILD_CHART,
+        icon=ft.Icons.SHOW_CHART
+    )
+
+def create_save_icon():
+    return ft.IconButton(
+        icon=ft.Icons.SAVE_ALT, # Или ft.Icons.SAVE
+        tooltip=cfg.TIP_SAVE_CSV_WITH_TYPES
     )
