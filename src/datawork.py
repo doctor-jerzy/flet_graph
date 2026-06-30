@@ -321,7 +321,7 @@ def add_normal_curve_and_stats(ax, data, bins=cfg.BINS):
     upper = mu + 3 * sigma
     
     # Подписи 3σ чуть ниже, чтобы не перекрывались с μ
-    if (data < 0).any():
+    if (lower>0) or (lower<0 and (data<0).any()):
         ax.axvline(
             lower,
             color=cfg.SIGMA_LINE_COLOR,
