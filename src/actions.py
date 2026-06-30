@@ -86,6 +86,21 @@ async def choose_file(e):
     bld.show_screen(screen)
     bld.append_to_log(f"Файл загружен: {path}\nСтрок: {len(df)}, Столбцов: {len(df.columns)}")
 
+def save_state(e):
+    """Фиксирует текущее состояние work_df как исходное (orig_df)."""
+    if dtw.var.work_df is None or dtw.var.work_df.empty:
+        bld.append_to_log("Нечего сохранять: датасет пуст или не загружен.", type='error')
+        return
+    
+    # Копируем текущее рабочее состояние в исходное
+    dtw.var.orig_df = dtw.var.work_df.copy()
+    
+    # Уведомляем пользователя
+    bld.append_to_log(
+        "Текущее состояние датасета зафиксировано.\n"
+        f"Теперь кнопка '{cfg.TIP_REVERT}' вернет данные именно к этому состоянию."
+    )
+
 async def save_file(e):
     """Обработчик сохранения датасета и его типов."""
     if dtw.var.work_df is None or dtw.var.work_df.empty:
@@ -111,14 +126,23 @@ async def save_file(e):
         bld.append_to_log(f"Ошибка при сохранении: {ex}", type='error')
 
 def open_del_col_params(e):
-    bld.app.column_dropdown = gui.create_column_dropdown(dtw.var.work_df)
+    bld.app.column_dropdown = gui.create_del_col_dropdown(dtw.var.work_df)
     
     bld.btn.del_col = gui.create_delete_button()
     bld.btn.del_col.on_click = delete_column
     
     bld.refresh_container(
         bld.app.parameters_slot,
-        content=ft.Row([bld.app.column_dropdown, bld.btn.del_col])
+        content=ft.Column(
+            controls=[
+                ft.Text("Удаление поля", weight=ft.FontWeight.BOLD,
+                        size=cfg.SLOT_TITLE_TEXT_SIZE,
+                        color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Row([bld.app.column_dropdown, bld.btn.del_col])
+            ],
+            spacing=15,
+            expand=True
+        )
     )
 
 def delete_column(e):
@@ -132,10 +156,19 @@ def delete_column(e):
     set_view_params(dtw.var.work_page)
     
     # обнови слот параметров, чтоб лишнюю колонку убрать
-    bld.app.column_dropdown = gui.create_column_dropdown(dtw.var.work_df)
+    bld.app.column_dropdown = gui.create_del_col_dropdown(dtw.var.work_df)
     bld.refresh_container(
         bld.app.parameters_slot,
-        content=ft.Row([bld.app.column_dropdown, bld.btn.del_col])
+        content=ft.Column(
+            controls=[
+                ft.Text("Удаление поля", weight=ft.FontWeight.BOLD,
+                        size=cfg.SLOT_TITLE_TEXT_SIZE,
+                        color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Row([bld.app.column_dropdown, bld.btn.del_col])
+            ],
+            spacing=15,
+            expand=True
+        )
     )
 
     bld.refresh_container(
@@ -146,7 +179,7 @@ def delete_column(e):
         bld.app.page_info,
         content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages)
     )
-    bld.append_to_log(f"Удалён столбец: '{col_name}'")
+    bld.append_to_log(f"Удалено поле: '{col_name}'")
 
 def revert(e):
     # возврат к оригинальным данным dtw
@@ -301,6 +334,9 @@ def open_add_col_params(e):
         bld.app.parameters_slot,
         content=ft.Column(
             controls=[
+                ft.Text("Добавление/изменение поля", weight=ft.FontWeight.BOLD,
+                    size=cfg.SLOT_TITLE_TEXT_SIZE,
+                    color=ft.Colors.ON_SURFACE_VARIANT),
                 bld.app.col_name_input,
                 bld.app.col_type_dropdown,
                 bld.app.col_value_input,
@@ -375,7 +411,9 @@ def open_chart_params(e):
         bld.app.parameters_slot,
         content=ft.Column(
             controls=[
-                ft.Text("Построение графика", weight=ft.FontWeight.BOLD),
+                ft.Text("Построение графика", weight=ft.FontWeight.BOLD,
+                    size=cfg.SLOT_TITLE_TEXT_SIZE,
+                    color=ft.Colors.ON_SURFACE_VARIANT),
                 bld.app.chart_type_dropdown,
                 bld.app.chart_columns_container,
             ],
@@ -445,7 +483,7 @@ def on_chart_type_select(e):
 
     bld.refresh_container(
         bld.app.chart_columns_container,
-        content=ft.Column(controls=controls, spacing=10)
+        content=ft.Column(controls=controls, spacing=15)
     )
 
 def on_hist_category_select(e):
@@ -537,3 +575,99 @@ def build_chart(e):
 
     except Exception as ex:
         bld.append_to_log(f"Ошибка построения графика: {ex}", type='error')
+
+
+# =================== ВЫБРОСЫ ===================
+
+def open_outliers_params(e):
+    """Открывает панель параметров для работы с выбросами."""
+    if dtw.var.work_df is None or dtw.var.work_df.empty:
+        bld.append_to_log("Сначала загрузите датасет.", type='error')
+        return
+
+    # 1. Создаем элементы UI
+    bld.app.outliers_checkboxes = gui.create_numeric_columns_checkboxes(dtw.var.work_df)
+    bld.app.btn_find_outliers = gui.create_find_outliers_btn()
+    bld.app.btn_remove_outliers = gui.create_remove_outliers_btn()
+
+    # 2. Привязываем обработчики к кнопкам
+    bld.app.btn_find_outliers.on_click = find_outliers
+    bld.app.btn_remove_outliers.on_click = remove_outliers_action
+
+    # 3. Собираем контент для слота параметров
+    content = ft.Column(
+        controls=[
+            ft.Text(cfg.TXT_SELECT_COLS_FOR_OUTLIERS, 
+                    weight=ft.FontWeight.BOLD,
+                    size=cfg.SLOT_TITLE_TEXT_SIZE,
+                    color=ft.Colors.ON_SURFACE_VARIANT),
+            bld.app.outliers_checkboxes,
+            ft.Divider(),
+            ft.Row(
+                controls=[bld.app.btn_find_outliers, bld.app.btn_remove_outliers],
+                spacing=10,
+                alignment=ft.MainAxisAlignment.START
+            ),
+            ft.Text(cfg.TXT_OUTLIER_WARNING, size=14,
+                color=ft.Colors.ON_SURFACE_VARIANT
+            )
+        ],
+        spacing=15,
+        scroll=ft.ScrollMode.AUTO
+    )
+    
+    bld.refresh_container(bld.app.parameters_slot, content=content)
+
+
+def find_outliers(e):
+    """Обработчик кнопки 'Определить выбросы'."""
+    # Собираем выбранные столбцы из чекбоксов
+    selected = [cb.label for cb in bld.app.outliers_checkboxes.controls if cb.value]
+    
+    if not selected:
+        bld.append_to_log("Выберите хотя бы один числовой столбец.", type='error')
+        return
+
+    # Вызываем бэкенд
+    new_df, success, msg = dtw.mark_outliers_zscore(dtw.var.work_df, selected)
+    
+    if success:
+        # Обновляем данные
+        dtw.var.work_df = new_df
+        set_work_params(new_df, dtw.var.work_page)
+        set_view_params(dtw.var.work_page)
+        
+        # Обновляем таблицу на экране
+        bld.refresh_container(bld.app.table, content=gui.create_table(dtw.var.view_df, dtw.var.curr_page))
+        bld.refresh_container(bld.app.page_info, content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages))
+        
+        bld.append_to_log(msg)
+    else:
+        bld.append_to_log(msg, type='error')
+
+
+def remove_outliers_action(e):
+    """Обработчик кнопки 'Удалить выбросы'."""
+    if cfg.OUTLIER_COL_NAME not in dtw.var.work_df.columns:
+        bld.append_to_log(cfg.TXT_NO_OUTLIER_COL, type='error')
+        return
+
+    # Вызываем бэкенд
+    new_df, success, msg = dtw.remove_outliers_by_col(dtw.var.work_df, cfg.OUTLIER_COL_NAME)
+    
+    if success:
+        # Обновляем данные
+        dtw.var.work_df = new_df
+        set_work_params(new_df, dtw.var.work_page)
+        set_view_params(dtw.var.work_page)
+        
+        # Обновляем таблицу на экране
+        bld.refresh_container(bld.app.table, content=gui.create_table(dtw.var.view_df, dtw.var.curr_page))
+        bld.refresh_container(bld.app.page_info, content=gui.create_page_info(dtw.var.curr_page, dtw.var.tot_pages))
+        
+        # Закрываем панель параметров (или очищаем её), так как столбцы могли измениться
+        bld.refresh_container(bld.app.parameters_slot, content=gui.create_parameters())
+        
+        bld.append_to_log(msg)
+    else:
+        bld.append_to_log(msg, type='error')

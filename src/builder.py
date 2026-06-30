@@ -34,6 +34,10 @@ class AppState:
     chart_build_btn = None
     chart_category_dropdown = None # для гистограммы и scatter
     chart_col_dd = None
+    # - Работа с выбросами -
+    outliers_checkboxes = None
+    btn_find_outliers = None
+    btn_remove_outliers = None
 
 # сюда надо подать элементы интерфейса, которые должны быть привязаны к конкретным действиям изначально
 @dataclass
@@ -42,6 +46,7 @@ class Button:
     load_butt = gui.create_load_button()
     # кнопки тулбара
     load_icon = gui.create_load_icon()
+    checkpoint = gui.create_save_state_icon()
     save_icon = gui.create_save_icon()
     revert_icon = gui.create_revert_icon()
     add_col_icon = gui.create_add_col_icon()
@@ -49,7 +54,8 @@ class Button:
     info_icon = gui.create_info_button()
     stats_icon = gui.create_stats_icon()
     del_dup_icon = gui.create_del_dup_icon()
-    charts_icon = gui.create_charts_icon() 
+    charts_icon = gui.create_charts_icon()
+    outliers_icon = gui.create_outliers_icon()
     
     # кнопки переключения страниц
     to_begin = gui.create_to_begin_button()
@@ -94,20 +100,16 @@ def main_screen(df, curr_page, tot_pages):
     # Тулбар
     toolbar = ft.Container(
         content=gui.create_toolbar(
-            btn.load_icon,
-            btn.save_icon,
-            btn.revert_icon,
-            btn.add_col_icon,
-            btn.del_col_icon,
-            btn.info_icon,
-            btn.stats_icon,
-            btn.del_dup_icon,
-            btn.charts_icon
+            # Группа 1: Работа с файлами
+            [btn.load_icon, btn.checkpoint, btn.save_icon, btn.revert_icon],
+            # Группа 2: Манипуляции с данными (структура и очистка)
+            [btn.add_col_icon, btn.del_col_icon, btn.del_dup_icon, btn.outliers_icon],
+            # Группа 3: Анализ и визуализация
+            [btn.charts_icon, btn.stats_icon, btn.info_icon]
         ),
         padding=cfg.TOOLBAR_PADDING,
         bgcolor=cfg.TOOLBAR_BGCOLOR
     )
-
     
     # Таблица
     app.table = ft.Container(
@@ -156,10 +158,11 @@ def main_screen(df, curr_page, tot_pages):
     app.output_slot = ft.Container(
         content=gui.create_output(),
         height=cfg.OUTPUT_SLOT_HEIGHT,
-        width=cfg.OUTPUT_SLOT_WIDTH,
+        # width=cfg.OUTPUT_SLOT_WIDTH,
         border=ft.Border.all(width=cfg.SLOT_BORDER_WIDTH, color=cfg.SLOT_BORDER_COLOR),
         padding=cfg.SLOT_PADDING,
-        alignment=ft.Alignment.TOP_LEFT
+        alignment=ft.Alignment.TOP_LEFT,
+        expand=True
     )
 
     # Слот для графиков (изначально пустой, без высоты)
@@ -179,7 +182,7 @@ def main_screen(df, curr_page, tot_pages):
             ft.Row(
                 [app.parameters_slot, app.output_slot],
                 expand=True,
-                scroll=ft.ScrollMode.AUTO
+                # scroll=ft.ScrollMode.AUTO
             ),
             app.chart_slot
         ),

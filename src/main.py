@@ -18,13 +18,15 @@ def start(page: ft.Page):
     bld.btn.load_butt.on_click = do.choose_file
     
     bld.btn.load_icon.on_click = do.choose_file
+    bld.btn.checkpoint.on_click = do.save_state
     bld.btn.save_icon.on_click = do.save_file
     bld.btn.revert_icon.on_click = do.revert
     bld.btn.add_col_icon.on_click = do.open_add_col_params
     bld.btn.del_col_icon.on_click = do.open_del_col_params
+    bld.btn.del_dup_icon.on_click = do.remove_duplicates
+    bld.btn.outliers_icon.on_click = do.open_outliers_params
     bld.btn.info_icon.on_click = do.table_info
     bld.btn.stats_icon.on_click = do.show_statistics
-    bld.btn.del_dup_icon.on_click = do.remove_duplicates
     bld.btn.charts_icon.on_click = do.open_chart_params
 
     bld.btn.to_begin.on_click = do.slide_table_begin
